@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#4F46E5" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>MisFinanzas</title>
+  <link rel="stylesheet" href="css/styles.css" />
+  <!-- Google tag (gtag.js) -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-XXXXXXXXXX"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+
+  gtag('config', 'G-XXXXXXXXXX');
+</script>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <h1>💰 MisFinanzas</h1>
+      <p id="header-date"></p>
+    </div>
+    <button class="header-settings" onclick="openModal('modal-settings')" title="Configuración">⚙️</button>
+
+  </header>
+
+  <!-- ═══════════════════════════════ PÁGINAS ═══════════════════════════════ -->
+
+  <!-- DASHBOARD -->
+  <main class="page active" id="page-home">
+
+    <div class="card balance-card">
+      <div class="card-title">Balance total</div>
+      <div class="balance-big" id="total-balance">S/ 0.00</div>
+      <div class="balance-sub" id="balance-sub">Cargando...</div>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat">
+        <div class="stat-label">Ingresos del mes</div>
+        <div class="stat-val green" id="stat-income">S/ 0</div>
+      </div>
+      <div class="stat">
+        <div class="stat-label">Gastos del mes</div>
+        <div class="stat-val red" id="stat-expenses">S/ 0</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Distribución de gastos</div>
+      <div class="donut-wrap">
+        <canvas id="donut-chart" width="110" height="110"></canvas>
+        <div class="donut-legend" id="donut-legend">
+          <div class="empty-legend">Sin gastos este mes</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" id="home-budgets-card" style="display:none;">
+      <div class="card-title-row">
+        <span class="card-title">Presupuestos</span>
+        <button class="link-btn" onclick="showPage('budget', document.querySelectorAll('.nav-btn')[2])">Ver todos</button>
+      </div>
+      <div id="home-budgets"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title-row">
+        <span class="card-title">Últimas transacciones</span>
+        <button class="link-btn" onclick="showPage('tx', document.querySelectorAll('.nav-btn')[1])">Ver todas</button>
+      </div>
+      <div id="recent-tx">
+        <div class="empty-state">
+          <div class="empty-icon">📋</div>
+          <p>Sin transacciones aún</p>
+          <small>Toca el botón + para agregar</small>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- TRANSACCIONES -->
+  <main class="page" id="page-tx">
+
+    <div class="search-row">
+      <input class="form-input search-input" id="tx-search" type="search" placeholder="🔍 Buscar..." />
+      <select class="form-input form-select filter-select" id="tx-filter">
+        <option value="all">Todos</option>
+        <option value="income">Ingresos</option>
+        <option value="expense">Gastos</option>
+      </select>
+    </div>
+
+    <div class="card">
+      <div id="tx-list">
+        <div class="empty-state">
+          <div class="empty-icon">💸</div>
+          <p>Agrega tu primera transacción</p>
+          <small>Toca el botón + para comenzar</small>
+        </div>
+      </div>
+    </div>
+
+  </main>
+
+  <!-- PRESUPUESTOS -->
+  <main class="page" id="page-budget">
+
+    <div class="card">
+      <div class="card-title">Resumen del mes</div>
+      <div class="stats-row">
+        <div class="stat">
+          <div class="stat-label">Presupuestado</div>
+          <div class="stat-val blue" id="bud-total">S/ 0</div>
+        </div>
+        <div class="stat">
+          <div class="stat-label">Gastado</div>
+          <div class="stat-val red" id="bud-spent">S/ 0</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Por categoría</div>
+      <div id="budget-list">
+        <div class="empty-state">
+          <div class="empty-icon">📊</div>
+          <p>Crea tu primer presupuesto</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-outline" onclick="openModal('modal-budget')">+ Nuevo presupuesto</button>
+
+  </main>
+
+  <!-- METAS -->
+  <main class="page" id="page-goals">
+
+    <div id="goals-list">
+      <div class="empty-state">
+        <div class="empty-icon">🎯</div>
+        <p>Define tu primera meta financiera</p>
+        <small>Ahorra con un objetivo en mente</small>
+      </div>
+    </div>
+
+    <button class="btn btn-outline" onclick="openModal('modal-goal')">+ Nueva meta</button>
+
+  </main>
+
+  <!-- DEUDAS -->
+  <main class="page" id="page-debts">
+
+    <div class="card">
+      <div class="debt-summary">
+        <div>
+          <div class="card-title">Total que debo</div>
+          <div class="stat-val red" id="total-debts" style="font-size:26px;">S/ 0.00</div>
+        </div>
+        <div style="text-align:right;">
+          <div class="card-title">Me deben</div>
+          <div class="stat-val green" id="total-lent" style="font-size:26px;">S/ 0.00</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="debts-list">
+        <div class="empty-state">
+          <div class="empty-icon">💳</div>
+          <p>Sin deudas registradas</p>
+        </div>
+      </div>
+    </div>
+
+    <button class="btn btn-outline" onclick="openModal('modal-debt')">+ Registrar deuda/préstamo</button>
+
+    <button onclick="clearPaidDebts()" class="btn btn-danger" title="Eliminar todas las deudas pagadas">
+      🗑️ Eliminar historial
+    </button>
+
+  </main>
+
+  <!-- ═══════════════════════════════ NAV BOTTOM ═══════════════════════════════ -->
+  <nav class="nav">
+    <button class="nav-btn active" onclick="showPage('home', this)">
+      <span class="nav-icon">🏠</span>
+      <span>Inicio</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('tx', this)">
+      <span class="nav-icon">💸</span>
+      <span>Transac.</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('budget', this)">
+      <span class="nav-icon">📊</span>
+      <span>Presup.</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('goals', this)">
+      <span class="nav-icon">🎯</span>
+      <span>Metas</span>
+    </button>
+    <button class="nav-btn" onclick="showPage('debts', this)">
+      <span class="nav-icon">💳</span>
+      <span>Deudas</span>
+    </button>
+  </nav>
+
+  <!-- FAB -->
+  <button class="fab" onclick="openModal('modal-tx')" title="Nueva transacción" aria-label="Nueva transacción">+</button>
+
+</div><!-- /app -->
+
+
+<!-- ═══════════════════════════════ MODALES ═══════════════════════════════ -->
+
+<!-- MODAL TRANSACCIÓN -->
+<div class="modal-overlay" id="modal-tx">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Nueva transacción</div>
+      <button class="close-btn" onclick="closeModal('modal-tx')" aria-label="Cerrar">×</button>
+    </div>
+    <div class="type-toggle">
+      <button class="type-btn active" id="type-expense" onclick="setTxType('expense')">📤 Gasto</button>
+      <button class="type-btn" id="type-income" onclick="setTxType('income')">📥 Ingreso</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="tx-amount">Monto (S/)</label>
+      <input class="form-input" id="tx-amount" type="number" placeholder="0.00" step="0.01" min="0" inputmode="decimal" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="tx-desc">Descripción</label>
+      <input class="form-input" id="tx-desc" type="text" placeholder="Ej: Almuerzo, Sueldo mensual..." />
+    </div>
+    <div class="form-group">
+      <label class="form-label">Categoría</label>
+      <div class="chip-row" id="cat-chips"></div>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="tx-date">Fecha</label>
+      <input class="form-input" id="tx-date" type="date" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="tx-note">Nota (opcional)</label>
+      <input class="form-input" id="tx-note" type="text" placeholder="Comentario adicional..." />
+    </div>
+    <button class="btn" onclick="saveTransaction()">Guardar transacción</button>
+  </div>
+</div>
+
+<!-- MODAL PRESUPUESTO -->
+<div class="modal-overlay" id="modal-budget">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Nuevo presupuesto</div>
+      <button class="close-btn" onclick="closeModal('modal-budget')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="bud-cat">Categoría</label>
+      <select class="form-input form-select" id="bud-cat">
+        <option value="">Seleccionar categoría...</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="bud-limit">Límite mensual (S/)</label>
+      <input class="form-input" id="bud-limit" type="number" placeholder="0.00" min="0" inputmode="decimal" />
+    </div>
+    <button class="btn" onclick="saveBudget()">Guardar presupuesto</button>
+  </div>
+</div>
+
+<!-- MODAL META -->
+<div class="modal-overlay" id="modal-goal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Nueva meta financiera</div>
+      <button class="close-btn" onclick="closeModal('modal-goal')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="goal-name">Nombre de la meta</label>
+      <input class="form-input" id="goal-name" type="text" placeholder="Ej: Viaje a Cusco, Fondo de emergencia..." />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="goal-target">Monto objetivo (S/)</label>
+      <input class="form-input" id="goal-target" type="number" placeholder="0.00" min="0" inputmode="decimal" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="goal-saved">Monto ahorrado hasta ahora (S/)</label>
+      <input class="form-input" id="goal-saved" type="number" placeholder="0.00" min="0" inputmode="decimal" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="goal-date">Fecha límite (opcional)</label>
+      <input class="form-input" id="goal-date" type="date" />
+    </div>
+    <button class="btn" onclick="saveGoal()">Guardar meta</button>
+  </div>
+</div>
+
+<!-- MODAL DEUDA -->
+<div class="modal-overlay" id="modal-debt">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Registrar deuda / préstamo</div>
+      <button class="close-btn" onclick="closeModal('modal-debt')">×</button>
+    </div>
+    <div class="type-toggle">
+      <button class="type-btn active" id="debt-type-owe" onclick="setDebtType('owe')">Yo debo</button>
+      <button class="type-btn" id="debt-type-lent" onclick="setDebtType('lent')">Me deben</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="debt-person">Persona / Entidad</label>
+      <input class="form-input" id="debt-person" type="text" placeholder="Ej: Banco BCP, Juan Pérez..." />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="debt-amount">Monto (S/)</label>
+      <input class="form-input" id="debt-amount" type="number" placeholder="0.00" min="0" inputmode="decimal" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="debt-due">Fecha de vencimiento (opcional)</label>
+      <input class="form-input" id="debt-due" type="date" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="debt-desc">Descripción</label>
+      <input class="form-input" id="debt-desc" type="text" placeholder="Ej: Préstamo personal, cuota 1 de 12..." />
+    </div>
+    <button class="btn" onclick="saveDebt()">Guardar</button>
+  </div>
+    <hr>
+  <div id="debt-list"></div>
+</div>
+
+<!-- MODAL CONFIGURACIÓN -->
+<div class="modal-overlay" id="modal-settings">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">⚙️ Configuración</div>
+      <button class="close-btn" onclick="closeModal('modal-settings')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="cfg-name">Tu nombre</label>
+      <input class="form-input" id="cfg-name" type="text" placeholder="Ej: Juan" />
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="cfg-currency">Moneda</label>
+      <select class="form-input form-select" id="cfg-currency">
+        <option value="S/">S/ — Sol peruano</option>
+        <option value="$">$ — Dólar</option>
+        <option value="€">€ — Euro</option>
+        <option value="COP$">COP$ — Peso colombiano</option>
+        <option value="Bs">Bs — Boliviano</option>
+        <option value="CLP$">CLP$ — Peso chileno</option>
+        <option value="MXN$">MXN$ — Peso mexicano</option>
+      </select>
+    </div>
+    <div class="settings-danger">
+      <p class="settings-danger-title">Zona de peligro</p>
+      <button class="btn btn-danger" onclick="clearAllData()">🗑️ Borrar todos los datos</button>
+    </div>
+    <button class="btn" onclick="saveSettings()">Guardar configuración</button>
+  </div>
+</div>
+
+<!-- MODAL ABONAR A META -->
+<div class="modal-overlay" id="modal-goal-add">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="goal-add-title">Abonar a meta</div>
+      <button class="close-btn" onclick="closeModal('modal-goal-add')">×</button>
+    </div>
+    <div class="form-group">
+      <label class="form-label" for="goal-add-amount">Monto a abonar (S/)</label>
+      <input class="form-input" id="goal-add-amount" type="number" placeholder="0.00" min="0" inputmode="decimal" />
+    </div>
+    <button class="btn" onclick="confirmAddToGoal()">Abonar</button>
+  </div>
+</div>
+
+
+<script src="js/data.js"></script>
+<script src="js/render.js"></script>
+<script src="js/app.js"></script>
+
+</body>
+</html>
