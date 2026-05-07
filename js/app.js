@@ -119,7 +119,6 @@ function saveTransaction() {
   const note = document.getElementById('tx-note').value.trim();
 
   if (!amt || amt <= 0)     { alert('Ingresa un monto válido.'); return; }
-  if (!desc)                { alert('Ingresa una descripción.'); return; }
   if (!state.selectedCat)  { alert('Selecciona una categoría.'); return; }
   if (!date)                { alert('Selecciona una fecha.'); return; }
 
@@ -235,7 +234,8 @@ function saveDebt() {
     amount,
     due,
     desc,
-    paid: false
+    paid: false,
+    createdAt: Date.now()
   });
 
   saveData();
@@ -251,6 +251,8 @@ function toggleDebtPaid(id) {
     debt.paid = !debt.paid;
     saveData();
     renderDebts();
+    renderHome();
+    renderRecentTx();
   }
 }
 

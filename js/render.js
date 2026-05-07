@@ -20,7 +20,10 @@ function renderHome() {
   const allTx   = getMonthTx();
   const income  = allTx.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
   const expenses = allTx.filter(t => t.type === 'expense').reduce((s, t) => s + t.amount, 0);
-  const balance  = state.transactions.reduce((s, t) => t.type === 'income' ? s + t.amount : s - t.amount, 0);
+  const debtImpact = state.debts
+    .filter(d => d.paid)
+    .reduce((s, d) => s + (d.type === 'lent' ? d.amount : -d.amount), 0);
+  const balance  = state.transactions.reduce((s, t) => t.type === 'income' ? s + t.amount : s - t.amount, 0) + debtImpact;
 
   document.getElementById('total-balance').textContent  = fmt(balance);
   document.getElementById('stat-income').textContent    = fmtShort(income);
@@ -29,8 +32,12 @@ function renderHome() {
   const diff = income - expenses;
   const diffColor = diff >= 0 ? 'var(--c-success)' : 'var(--c-danger)';
   const sign = diff >= 0 ? '+' : '';
+  const debtText = debtImpact
+    ? ` · Deudas pagadas: <strong style="color:${debtImpact >= 0 ? 'var(--c-success)' : 'var(--c-danger)'}">${debtImpact >= 0 ? '+' : ''}${fmt(debtImpact)}</strong>`
+    : '';
+
   document.getElementById('balance-sub').innerHTML =
-    `Este mes: <strong style="color:${diffColor}">${sign}${fmt(diff)}</strong>`;
+    `Este mes: <strong style="color:${diffColor}">${sign}${fmt(diff)}</strong>${debtText}`;
 
   renderDonut(allTx);
   renderRecentTx();
@@ -96,8 +103,14 @@ function renderDonut(txList) {
 // ---- TRANSACCIONES RECIENTES ----
 function renderRecentTx() {
   const el = document.getElementById('recent-tx');
-  const recent = state.transactions.slice(0, 5);
-  if (!recent.length) {
+  const recentItems = [
+    ...state.transactions.map(t => ({ ...t, _kind: 'tx', sortDate: new Date(t.date + 'T12:00:00').getTime() })),
+    ...state.debts.map(d => ({ ...d, _kind: 'debt', sortDate: d.createdAt || d.id }))
+  ]
+  .sort((a, b) => b.sortDate - a.sortDate)
+  .slice(0, 5);
+
+  if (!recentItems.length) {
     el.innerHTML = `<div class="empty-state">
       <div class="empty-icon">📋</div>
       <p>Sin transacciones aún</p>
@@ -105,23 +118,38 @@ function renderRecentTx() {
     </div>`;
     return;
   }
-  el.innerHTML = recent.map(txHTML).join('');
+
+  el.innerHTML = recentItems.map(txHTML).join('');
 }
 
 // ---- HTML DE UNA TRANSACCIÓN ----
 function txHTML(t) {
-  const sign   = t.type === 'income' ? '+' : '-';
-  const color  = t.type === 'income' ? 'var(--c-success)' : 'var(--c-danger)';
-  const emoji  = t.category.split(' ')[0] || '💰';
+  const isDebt = t._kind === 'debt';
+  const sign   = isDebt
+    ? (t.type === 'lent' ? '+' : '-')
+    : (t.type === 'income' ? '+' : '-');
+  const color  = isDebt
+    ? (t.type === 'lent' ? 'var(--c-success)' : 'var(--c-danger)')
+    : (t.type === 'income' ? 'var(--c-success)' : 'var(--c-danger)');
+  const emoji  = isDebt
+    ? (t.type === 'lent' ? '💸' : '💳')
+    : t.category.split(' ')[0] || '💰';
+  const title  = isDebt ? t.person : t.desc;
+  const subtitle = isDebt
+    ? `${t.type === 'lent' ? 'Me deben' : 'Yo debo'}${t.desc ? ' · ' + t.desc : ''}${t.paid ? ' · Pagado' : ''}`
+    : `${t.category}${t.note ? ' · ' + t.note : ''}`;
+  const dateVal = isDebt ? new Date(t.sortDate) : new Date(t.date + 'T12:00:00');
+  const dateStr = isDebt ? dateVal.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }) : formatDate(t.date);
+
   return `<div class="tx-item">
-    <div class="tx-icon" style="background:${t.color}22">${emoji}</div>
+    <div class="tx-icon" style="background:${isDebt ? 'rgba(79, 70, 229, 0.12)' : t.color + '22'}">${emoji}</div>
     <div class="tx-info">
-      <div class="tx-name">${t.desc}</div>
-      <div class="tx-cat">${t.category}${t.note ? ' · ' + t.note : ''}</div>
+      <div class="tx-name">${title}</div>
+      <div class="tx-cat">${subtitle}</div>
     </div>
     <div style="text-align:right;flex-shrink:0">
       <div class="tx-amount" style="color:${color}">${sign}${fmt(t.amount)}</div>
-      <div class="tx-date">${formatDate(t.date)}</div>
+      <div class="tx-date">${dateStr}</div>
     </div>
   </div>`;
 }
@@ -272,7 +300,6 @@ function renderGoals() {
 function renderDebts() {
   const el = document.getElementById('debts-list');
 
-  // Calcular totales SOLO de deudas vigentes (no pagadas)
   const totalOwe  = state.debts.filter(d => d.type === 'owe' && !d.paid).reduce((s, d) => s + d.amount, 0);
   const totalLent = state.debts.filter(d => d.type === 'lent' && !d.paid).reduce((s, d) => s + d.amount, 0);
 
@@ -287,102 +314,81 @@ function renderDebts() {
     return;
   }
 
-  const owe  = state.debts.filter(d => d.type === 'owe');
-  const lent = state.debts.filter(d => d.type === 'lent');
-  const now  = new Date();
-  let html   = '';
+  const owe         = state.debts.filter(d => d.type === 'owe');
+  const lent        = state.debts.filter(d => d.type === 'lent');
+  const oweActive   = owe.filter(d => !d.paid);
+  const oweHistory  = owe.filter(d => d.paid);
+  const lentActive  = lent.filter(d => !d.paid);
+  const lentHistory = lent.filter(d => d.paid);
+  const now         = new Date();
 
-  // Sección "Yo debo"
-if (owe.length) {
-  html += `<div class="card">
-    <div class="card-title">Yo debo</div>
-    <div class="debts-container">`;  // ← Agrega clase debts-container
-  html += owe.map(d => debtHTML(d, now, 'var(--c-danger)')).join('');
-  html += `</div>
-    </div>`;
+  const oweSection = renderDebtSection('Yo debo', oweActive, oweHistory, state.debtHistoryOweOpen, 'var(--c-danger)', 'owe', now);
+  const lentSection = renderDebtSection('Me deben', lentActive, lentHistory, state.debtHistoryLentOpen, 'var(--c-success)', 'lent', now);
+
+  el.innerHTML = `${oweSection}${lentSection}`;
 }
 
-// Sección "Me deben"
-if (lent.length) {
-  html += `<div class="card">
-    <div class="card-title">Me deben</div>
-    <div style="display: flex; flex-direction: column; gap: 12px;">`;  // ← Estilo inline
-  html += lent.map(d => `<div style="width: 100%;">${debtHTML(d, now, 'var(--c-success)')}</div>`).join('');
-  html += `</div>
-    </div>`;
+function renderDebtSection(title, activeItems, historyItems, isOpen, color, sectionKey, now) {
+  const hasHistory = historyItems.length > 0;
+  const sectionLabel = activeItems.length
+    ? `${activeItems.length} pendiente${activeItems.length === 1 ? '' : 's'}`
+    : 'Sin pendientes';
+
+  return `<div class="debt-section card">
+    <div class="section-header">
+      <div>
+        <div class="card-title">${title}</div>
+        <div class="section-label">${sectionLabel}</div>
+      </div>
+      ${hasHistory ? `<button class="history-toggle ${isOpen ? 'open' : ''}" onclick="toggleDebtHistory('${sectionKey}')">
+          ${isOpen ? 'Ocultar historial' : 'Ver historial'}
+          <span class="arrow">▾</span>
+        </button>` : ''}
+    </div>
+    <div class="debts-container">
+      ${activeItems.length
+        ? activeItems.map(d => debtHTML(d, now, color)).join('')
+        : `<div class="empty-state small">
+            <p>No hay ${title.toLowerCase()} activos</p>
+          </div>`
+      }
+    </div>
+    ${hasHistory ? `<div class="debt-history ${isOpen ? 'open' : ''}">
+        <div class="history-label">Historial saldado · ${historyItems.length} registro${historyItems.length === 1 ? '' : 's'}</div>
+        ${historyItems.map(d => debtHTML(d, now, color)).join('')}
+      </div>` : ''}
+  </div>`;
 }
 
-el.innerHTML = html;
+function toggleDebtHistory(section) {
+  if (section === 'owe') {
+    state.debtHistoryOweOpen = !state.debtHistoryOweOpen;
+  } else if (section === 'lent') {
+    state.debtHistoryLentOpen = !state.debtHistoryLentOpen;
+  }
+  renderDebts();
 }
 
 function debtHTML(d, now, color) {
   const overdue = d.due && new Date(d.due) < now && !d.paid;
 
   return `
-    <div class="debt-item" style="
-      border-left: 4px solid ${d.paid ? '#16a34a' : color};
-      background: ${d.paid ? 'rgba(22, 163, 74, 0.12)' : 'white'};
-      display:flex;
-      align-items:center;
-      gap:10px;
-      ">
-      
-      <input type="checkbox" 
-        ${d.paid ? "checked" : ""} 
+    <div class="debt-item ${d.paid ? 'paid' : ''}" style="border-left-color:${d.paid ? '#16a34a' : color};background:${d.paid ? 'rgba(22, 163, 74, 0.12)' : '#fff'};">
+      <input type="checkbox"
+        ${d.paid ? 'checked' : ''}
         onchange="toggleDebtPaid(${d.id})">
 
-      <div style="flex:1; margin-left:10px;">
-        <div style="
-          font-weight:600;
-          text-decoration:${d.paid ? "line-through" : "none"};
-        ">
-          ${d.person}
-        </div>
-
-        <div style="
-          font-size:12px;
-          opacity:0.7;
-          text-decoration:${d.paid ? "line-through" : "none"};
-        ">
-          ${d.desc || ''}
-        </div>
-
-        ${
-          d.due
-            ? `<div style="font-size:11px; color:${overdue ? 'red' : '#888'}">
-                ${overdue ? '⚠️ Vencido' : '📅'} ${d.due}
-              </div>`
-            : ''
-        }
+      <div class="debt-main">
+        <div class="debt-person">${d.person}</div>
+        ${d.desc ? `<div class="debt-desc">${d.desc}</div>` : ''}
+        ${d.due ? `<div class="debt-due ${overdue ? 'overdue' : ''}">${overdue ? '⚠️ Vencido' : '📅'} ${formatDate(d.due)}</div>` : ''}
       </div>
 
-      <div style="
-        display:flex;
-        flex-direction:column;
-        align-items:flex-end;
-        gap:4px;
-        ">
-        <div style="
-          font-weight:bold;
-          text-decoration:${d.paid ? "line-through" : "none"};
-        ">
-          ${fmt(d.amount)}
-        </div>
-
-        <button onclick="toggleDebtPaid(${d.id})" style="
-          background:${d.paid ? '#16a34a' : '#e5e7eb'};
-          color:${d.paid ? 'white' : '#333'};
-          border:none;
-          padding:4px 8px;
-          border-radius:6px;
-          cursor:pointer;
-          font-size:12px;
-        ">
-          ${d.paid ? '✔ Pagado' : 'Marcar'}
-        </button>
-
-    </div>
-  `;
+      <div class="debt-actions">
+        <div class="debt-amount">${fmt(d.amount)}</div>
+        <button class="debt-action-btn" onclick="toggleDebtPaid(${d.id})">${d.paid ? '✔ Pagado' : 'Marcar'}</button>
+      </div>
+    </div>`;
 }
 
 // ---- CHIPS DE CATEGORÍAS ----

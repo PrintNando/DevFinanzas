@@ -41,10 +41,12 @@ const state = {
     currency: 'S/',
   },
   // estado temporal de modales
-  txType:       'expense',
-  debtType:     'owe',
-  selectedCat:  null,
-  pendingGoalId: null,
+  txType:            'expense',
+  debtType:          'owe',
+  selectedCat:       null,
+  pendingGoalId:     null,
+  debtHistoryOweOpen: false,
+  debtHistoryLentOpen: false,
 };
 
 // ---- Persistencia (localStorage) ----
