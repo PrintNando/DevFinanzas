@@ -54,10 +54,10 @@ function prepTxModal() {
   document.getElementById('tx-desc').value   = '';
   document.getElementById('tx-note').value   = '';
   document.getElementById('tx-date').value   = new Date().toISOString().split('T')[0];
-  state.txType     = 'expense';
+  state.txType     = 'income';
   state.selectedCat = null;
-  document.getElementById('type-expense').classList.add('active');
-  document.getElementById('type-income').classList.remove('active');
+  document.getElementById('type-income').classList.add('active');
+  document.getElementById('type-expense').classList.remove('active');
   renderCatChips();
 }
 
@@ -110,6 +110,44 @@ function setDebtType(t) {
 }
 
 
+
+// ---- ELIMINAR TRANSACCIÓN ----
+function deleteTransaction(id) {
+  const numId = parseInt(id);
+  state.transactions = state.transactions.filter(t => t.id !== numId);
+  saveData();
+  renderHome();
+  renderRecentTx();
+  renderTx();
+  showFeedback('🗑️ Transacción eliminada');
+}
+
+// ---- MENÚ CONTEXTUAL DE TRANSACCIÓN ----
+let txLongPressTimer;
+function handleTxLongPress(event, id, isDebt) {
+  if (isDebt) return;
+  
+  txLongPressTimer = setTimeout(() => {
+    deleteTransaction(id);
+  }, 500);
+  
+  event.target.addEventListener('mouseup', () => {
+    clearTimeout(txLongPressTimer);
+  }, { once: true });
+  
+  event.target.addEventListener('mouseleave', () => {
+    clearTimeout(txLongPressTimer);
+  }, { once: true });
+}
+
+function showTxMenu(event, id, isDebt) {
+  if (isDebt) return;
+  
+  const confirmed = confirm('¿Eliminar esta transacción?');
+  if (confirmed) {
+    deleteTransaction(id);
+  }
+}
 
 // ---- GUARDAR TRANSACCIÓN ----
 function saveTransaction() {

@@ -120,6 +120,32 @@ function renderRecentTx() {
   }
 
   el.innerHTML = recentItems.map(txHTML).join('');
+  initTxLongPress();
+}
+
+// ---- EVENTO LONG PRESS PARA MÓVIL ----
+function initTxLongPress() {
+  const items = document.querySelectorAll('[data-tx-long-press]');
+  items.forEach(item => {
+    let touchTimer;
+    const id = item.getAttribute('data-id');
+    const isDebt = item.getAttribute('data-type') === 'debt';
+    
+    item.addEventListener('touchstart', () => {
+      if (isDebt) return;
+      touchTimer = setTimeout(() => {
+        deleteTransaction(id);
+      }, 500);
+    });
+    
+    item.addEventListener('touchend', () => {
+      clearTimeout(touchTimer);
+    });
+    
+    item.addEventListener('touchcancel', () => {
+      clearTimeout(touchTimer);
+    });
+  });
 }
 
 // ---- HTML DE UNA TRANSACCIÓN ----
@@ -141,15 +167,18 @@ function txHTML(t) {
   const dateVal = isDebt ? new Date(t.sortDate) : new Date(t.date + 'T12:00:00');
   const dateStr = isDebt ? dateVal.toLocaleDateString('es-PE', { day: 'numeric', month: 'short' }) : formatDate(t.date);
 
-  return `<div class="tx-item">
+  return `<div class="tx-item" data-id="${t.id}" data-type="${isDebt ? 'debt' : 'tx'}" data-tx-long-press onmousedown="handleTxLongPress(event, '${t.id}', ${isDebt ? 'true' : 'false'})">
     <div class="tx-icon" style="background:${isDebt ? 'rgba(79, 70, 229, 0.12)' : t.color + '22'}">${emoji}</div>
     <div class="tx-info">
       <div class="tx-name">${title}</div>
       <div class="tx-cat">${subtitle}</div>
     </div>
-    <div style="text-align:right;flex-shrink:0">
-      <div class="tx-amount" style="color:${color}">${sign}${fmt(t.amount)}</div>
-      <div class="tx-date">${dateStr}</div>
+    <div style="text-align:right;flex-shrink:0;display:flex;align-items:center;gap:8px;">
+      <div>
+        <div class="tx-amount" style="color:${color}">${sign}${fmt(t.amount)}</div>
+        <div class="tx-date">${dateStr}</div>
+      </div>
+      <button class="tx-menu-btn" onclick="event.stopPropagation(); showTxMenu(event, '${t.id}', ${isDebt ? 'true' : 'false'})">⋯</button>
     </div>
   </div>`;
 }
